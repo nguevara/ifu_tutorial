@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+# -*- coding: utf-8 -*-
 #    2016-May-02  shaw@noao.edu
 
 import sys
@@ -65,7 +66,9 @@ def gmos_ifu_proc():
     print (" ")
     dbFile='raw/obsLog.sqlite3'
     bpm = 'bpm_gmos-s_EEV_v2_1x1_spec_MEF.fits'
-
+    iraf.set.stdimage = 'imtgmos'
+ 
+    
     print ("=== Creating MasterCals ===")
 
     # Create the query dictionary of essential exposure parameter=value pairs.
@@ -94,7 +97,7 @@ def gmos_ifu_proc():
     qdn2['DateObs'] = '2012-10-26:2012-11-03'
     qdn2['Disperser'] = 'R831+_%'
     qdn2['CentWave'] = 853.0
-
+    
     print (" --Creating Bias MasterCals--")
 
     # Use primarily the default task parameters.
@@ -114,14 +117,15 @@ def gmos_ifu_proc():
     bias['S2'] = fs.fileListQuery(dbFile, fs.createQuery('bias', qds2), qds2)
 
     # Process bias files for each epoch of observations.
-    for epoch in ['S1', 'S2']:
+    # for epoch in ['S1', 'S2']:
+    for epoch in ['S1']:
         # The str.join() function is needed to transform a python list into 
         # a string of comman-separated files that IRAF can understand.
-        gmos.gbias(','.join(str(x) for x in bias(epoch)), 'MCbias' + epoch)
-
+        gmos.gbias(','.join(str(x) for x in bias[epoch]), 'MCbias' + epoch)
+    
     # Clean up
     iraf.imdel('gS2012*.fits')
-
+    
     print (" --Creating GCAL Spectral Flat-Field MasterCals--")
     # Set the task parameters.
     gmos.gireduce.unlearn()
@@ -130,7 +134,7 @@ def gmos_ifu_proc():
     traceFlags = {
         'fl_addmdf':'yes', 'fl_over':'yes', 'fl_trim':'yes', 'fl_bias':'yes', 
         'fl_extract':'yes', 'fl_gsappwave':'no', 'fl_wavtran':'no',
-        'fl_gscrrej':'no', 'fl_skysub':'no', 'fl_fluxcal':'no', 'fl_vardq':'yes'
+        'fl_gscrrej':'no', 'fl_skysub':'no', 'fl_fluxcal':'no', 'fl_vardq':'yes',
         'fl_inter':'no', 'rawpath':'./raw/', 'logfile':'gfreduceLog.txt'
         }
     flatFlags = {
@@ -147,11 +151,13 @@ def gmos_ifu_proc():
     gemtools.gemfix.logfile='gemfixLog.txt' 
 
     # Basic reductions for each epoch of GCAL flat-fields.
+    
     print ("  --Basic Flat-field reductions--")
     flat = {}
     flat['S1'] = fs.fileListQuery(dbFile, fs.createQuery('gcalFlat', qds1), qds1)
-    flat['S2'] = fs.fileListQuery(dbFile, fs.createQuery('gcalFlat', qds2), qds2)
-    for epoch in ['S1','S2']:
+    # flat['S2'] = fs.fileListQuery(dbFile, fs.createQuery('gcalFlat', qds2), qds2)
+    
+    for epoch in ['S1']:
         for f in flat[epoch]:
             print "  -Processing file: %s" % (f)
             gmos.gfreduce (f, bias='MCbias'+epoch, **traceFlags)
@@ -174,7 +180,7 @@ def gmos_ifu_proc():
             gapsFile = 'e' + prgf + '_gaps'
             gmos.gffindblocks ('prg'+f, traceFile, gapsFile)
             gmos.gfscatsub (prgf, gapsFile, **scatsubFlags)
-
+     
     # Apply QE correction to old GMOS-S CCDs here.
     # Re-extract GCAL flat-fields on scattered-light corrected exposures, and normalize.
     print (" -- Normalize Flat-fields --")
@@ -191,13 +197,14 @@ def gmos_ifu_proc():
         'fl_inter':'no', 'rawpath':'./', 'logfile':'gfreduceLog.txt'
         }
     prefix='bprg'
-    for epoch in ['S1','S2']:
+    for epoch in ['S1']:
         for f in flat[epoch]:
             print "  -Extracting & normalizing file: %s" % (prefix+f)
-            outFile = prefix+f + '_flat'
+            # outFile = prefix+f + '_flat'
+            outFile = 'e'+prefix+f + '_flat'
             gmos.gfreduce (prefix+f, **flatFlags)
-            gmos.gfresponse ('e'+prefix+f+'_flat', outimage=outFile, **responseFlags)
-
+            # gmos.gfresponse (prefix+f, outimage=outFile, **responseFlags)
+            gmos.gfresponse ('e'+prefix+f, outimage=outFile, **responseFlags)
     # Clean up
     iraf.imdele ("gS2012*.fits,rgS2012*.fits")
     
@@ -315,7 +322,7 @@ def gmos_ifu_proc():
 
     gmos.gsstandard.unlearn()
     gsstdFlags = {
-        'caldir':'./', 'extinction'='onedstds$ctioextinct.dat', 'order':11,
+        'caldir':'./', 'extinction':'onedstds$ctioextinct.dat', 'order':11,
         'observatory':'Gemini-South', 'logfile':'gsstandardLog.txt', 
         'fl_inter':'yes'
         }
@@ -424,8 +431,8 @@ def gmos_ifu_proc():
     print (" -- Combine the datacubes --")
     iraf.imcombine.unlearn()
     iraf.imcombine ('dcstepxrgS20120827S00*.fits[SCI]', 'j2240-097_cube.fits')
-
+    
     print ("=== End of Advanced Processing ===")
 
 if __name__ == "__main__":
-    gmos_mos_proc()
+    gmos_ifu_proc()
