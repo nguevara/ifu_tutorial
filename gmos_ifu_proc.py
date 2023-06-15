@@ -230,11 +230,11 @@ def gmos_ifu_proc():
 
     # Record some associative calibration information.
     std1 = ReductParam ('std', qds1, 'raw/obsLog.sqlite3', bias='MCbiasS1', 
-                        trace='eprgS20120829S0062_trace', flat='eprgS20120829S0062_flat', 
-                        gaps='eprgS20120829S0062_gaps', wvtran='ergS20120828S0199')
-    std2 = ReductParam ('sciSpec', qds2, 'raw/obsLog.sqlite3', bias='MCbiasS2', 
-                        trace='eprgS20121031S0025_trace', flat='eprgS20121031S0025_flat', 
-                        gaps='eprgS20121031S0025_gaps', wvtran='ergS20120828S0199')
+                        trace='eprgS20120829S0062_trace', flat='ebprgS20120829S0062_flat', 
+                        gaps='eprgS20120829S0062_gaps', wvtran='ergS20120829S0199')
+    # std2 = ReductParam ('sciSpec', qds2, 'raw/obsLog.sqlite3', bias='MCbiasS2', 
+    #                     trace='eprgS20121031S0025_trace', flat='eprgS20121031S0025_flat', 
+    #                     gaps='eprgS20121031S0025_gaps', wvtran='ergS20120828S0199')
 
     print (" -- Basic Processing --")
     basicFlags = {
@@ -244,7 +244,7 @@ def gmos_ifu_proc():
         'fl_inter':'no', 'rawpath':'./raw/', 'logfile':'gfreduceLog.txt'
         }
     prefix = 'rg'
-    for s in [std1,std2]:
+    for s in [std1]:
         for f in s.fileList:
             print "  -Processing file: %s" % (prefix+f)
             gmos.gfreduce (f, bias=s.MCbias, **basicFlags)
@@ -257,22 +257,22 @@ def gmos_ifu_proc():
 
     # Clean up
     iraf.imdel('gS2012*.fits')
-
+    prefix = 'rg'
     print (" -- Artifact Rejection --")
     gemtools.gemcrspec.unlearn()
     gemtools.gemcrspec.fl_vardq='yes'
     gemtools.gemcrspec.verbose='yes'
     gemtools.gemcrspec.logfile='gemcrspecLog.txt'
 
-    for f in std1.fileList+std2.fileList:
+    for f in std1.fileList:
         print "  -CR rejecting file: %s" % (prefix+f)
         xFile = 'x' + prefix + f
         gemtools.gemcrspec (prefix+f, xFile, sigfrac=0.32, niter=4)
         gemtools.gemfix (xFile, 'p'+xFile, method='fixpix')
 
     print (" -- Scattered Light Correction --")
-    prefix = 'xrg'
-    for s in [std1,std2]:
+    prefix = 'pxrg'
+    for s in [std1]:
         for f in s.fileList:
             fName = prefix + f
             print "  -Subtracting scattered light from file: %s" % (fName)
@@ -290,7 +290,7 @@ def gmos_ifu_proc():
         }
     prefix = 'bpxrg'
 
-    for s in [std1,std2]:
+    for s in [std1]:
         for f in s.fileList:
             print "  -Processing file: %s" % (prefix+f)
             gmos.gfreduce (prefix+f, reference=s.MCtrace, response=s.MCresponse, 
@@ -307,16 +307,16 @@ def gmos_ifu_proc():
         print "  -Summing file: %s" % (prefix+f)
         gmos.gfapsum (prefix+f, outimages='EG131sum_B6-625', lthreshold=0.)
     # LTT9239:
-    for f in std2.fileList:
-        print "  -Summing file: %s" % (prefix+f)
-        gmos.gfapsum (prefix+f, lthreshold=0.)
+    # for f in std2.fileList:
+    #     print "  -Summing file: %s" % (prefix+f)
+    #     gmos.gfapsum (prefix+f, lthreshold=0.)
 
-    # Combine exposures
-    gemtools.gemcombine.unlearn()
-    gemtools.gemcombine.logfile="gemcombineLog.txt"
-    prefix = 'astepxrg'
-    gemtools.gemcombine (','.join(prefix+str(x) for x in std2.fileList), 
-                         'LTT9239sum_B6-625', reject='none', scale='exposure')
+    # # Combine exposures
+    # gemtools.gemcombine.unlearn()
+    # gemtools.gemcombine.logfile="gemcombineLog.txt"
+    # prefix = 'astepxrg'
+    # gemtools.gemcombine (','.join(prefix+str(x) for x in std2.fileList), 
+    #                      'LTT9239sum_B6-625', reject='none', scale='exposure')
 
     print (" -- Sensitivity Derivation --")
 
@@ -326,8 +326,8 @@ def gmos_ifu_proc():
         'observatory':'Gemini-South', 'logfile':'gsstandardLog.txt', 
         'fl_inter':'yes'
         }
-    gmos.gsstandard ('EG131sum_B6-625,LTT9239sum_B6-625', 'std_B6-625', 
-                     'Sens_B6-625', starname='eg131,l9239', **gsstdFlags)
+    gmos.gsstandard ('EG131sum_B6-625', 'std_B6-625', 
+                     'Sens_B6-625', starname='eg131', **gsstdFlags)
 
     # Clean up
     iraf.imdel('gS2012*.fits,rgS2012*.fits')
@@ -336,7 +336,7 @@ def gmos_ifu_proc():
     print (" -- Basic Processing --")
                              
     sci = ReductParam ('sciSpec', qds1, 'raw/obsLog.sqlite3', bias='MCbiasS1', 
-                        trace='eprgS20120827S0069_trace', flat='eprgS20120827S0069_flat', 
+                        trace='eprgS20120827S0069_trace', flat='ebprgS20120827S0069_flat', 
                         wvtran='ergS20120829S0199', sensfunc='Sens_B6-625')
                           
     for f in sci.fileList:
